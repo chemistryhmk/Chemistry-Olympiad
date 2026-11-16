@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Олімпіада: Слідча Справа</title>
+    <style>
+        /* ДИЗАЙН: Стіл слідчого та папки зі справами */
+        :root {
+            --desk-bg: #3e2723;
+            --paper-bg: #f4e9d8;
+            --paper-border: #d7ccc8;
+            --typewriter: 'Courier New', Courier, monospace;
+            --ink-color: #212121;
+            --stamp-red: #b71c1c;
+            --ink-blue: #0d47a1;
+        }
+        
+        * { box-sizing: border-box; user-select: none; }
+        
+        body { 
+            margin: 0; padding: 0; 
+            background-color: var(--desk-bg); 
+            background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 2px, transparent 2px, transparent 4px);
+            color: var(--ink-color); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; height: 100vh; overflow: hidden; 
+        }
+        
+        /* Layout */
+        .sidebar-left, .sidebar-right { 
+            width: 320px; background: rgba(20, 20, 20, 0.6); 
+            display: flex; flex-direction: column; padding: 15px; overflow-y: auto; 
+            border-right: 2px solid #1a1a1a; backdrop-filter: blur(5px); color: #e0e0e0;
+        }
+        .sidebar-right { border-right: none; border-left: 2px solid #1a1a1a; }
+        .main-content { flex: 1; display: flex; flex-direction: column; position: relative; overflow-y: auto; padding: 20px; align-items: center; }
+        
+        /* Dossier Folder (Paper) */
+        .stage-card { 
+            display: none; 
+            background: var(--paper-bg); 
+            width: 100%; max-width: 850px; 
+            min-height: 80vh;
+            padding: 40px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5); 
+            border-radius: 2px 15px 2px 2px;
+            position: relative;
+            border-left: 1px solid #fff;
+            animation: slideUp 0.4s ease-out;
+        }
+        .stage-card.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .folder-tab {
+            position: absolute; top: -30px; left: 0; background: var(--paper-bg);
+            padding: 5px 20px; border-radius: 8px 8px 0 0; font-weight: bold;
+            font-family: var(--typewriter); color: var(--ink-color);
+            box-shadow: 0 -5px 10px rgba(0,0,0,0.2);
+        }
+
+        h2 { 
+            font-family: var(--typewriter); font-size: 1.8rem; border-bottom: 2px dashed #9e9e9e; 
+            padding-bottom: 10px; margin-top: 0; text-transform: uppercase; letter-spacing: -1px;
+        }
+        
+        .story-text { 
+            font-family: var(--typewriter); font-size: 1.1rem; line-height: 1.5; 
+            margin-bottom: 25px; padding: 15px; background: rgba(0,0,0,0.03); 
+            border-left: 4px solid #757575;
+        }
+        
+        /* Stamp */
+        .stamp {
+            color: var(--stamp-red); border: 4px solid var(--stamp-red);
+            font-family: var(--typewriter); font-size: 1.5rem; font-weight: bold;
+            padding: 5px 15px; display: inline-block; text-transform: uppercase;
+            transform: rotate(-10deg); border-radius: 4px; margin-bottom: 15px;
+            opacity: 0.8; mix-blend-mode: multiply;
+        }
+
+        /* Forms on Paper */
+        .form-group { margin-bottom: 25px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-family: var(--typewriter); }
+        input[type="text"], input[type="number"], select { 
+            width: 100%; padding: 10px; background: transparent; 
+            border: none; border-bottom: 2px solid var(--ink-color); 
+            color: var(--ink-blue); font-family: var(--typewriter); font-size: 1.2rem; font-weight: bold;
+            user-select: text; outline: none; transition: border-color 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--stamp-red); }
+        
+        /* Typewriter Button */
+        button { 
+            background: #2c3e50; color: #ecf0f1; border: 2px solid #1a252f; 
+            padding: 12px 24px; font-family: var(--typewriter); font-size: 1.1rem; 
+            font-weight: bold; cursor: pointer; transition: 0.2s; 
+            width: 100%; margin-top: 10px; text-transform: uppercase; 
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+        }
+        button:hover { background: #34495e; transform: translate(-1px, -1px); box-shadow: 4px 4px 0 rgba(0,0,0,0.3); }
+        button:disabled { background: #7f8c8d; color: #bdc3c7; box-shadow: none; cursor: not-allowed; transform: none; }
+        
+        .sys-msg { padding: 12px; margin-top: 15px; display: none; font-family: var(--typewriter); font-weight: bold; border: 2px dashed; }
+        .sys-error { display: block; color: var(--stamp-red); border-color: var(--stamp-red); background: rgba(183, 28, 28, 0.1); }
+        .sys-success { display: block; color: #1b5e20; border-color: #1b5e20; background: rgba(27, 94, 32, 0.1); }
+
+        /* Stats (Top Bar) */
+        .stats-panel { 
+            display: flex; justify-content: space-around; width: 100%; max-width: 850px; 
+            margin-bottom: 20px; font-family: var(--typewriter); font-weight: bold; 
+            background: var(--paper-bg); padding: 10px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        
+        /* Inventory (Left Panel) */
+        .inventory-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .inv-item { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 4px; display: flex; align-items: center; gap: 10px; font-family: var(--typewriter); }
+        .inv-icon { font-size: 1.8rem; filter: sepia(1); }
+        .inv-value { font-weight: bold; color: #81c784; font-size: 1.1rem; }
+
+        /* Calculator (Right Panel) */
+        .calc-wrapper { background: #1e1e1e; border: 2px solid #424242; padding: 15px; margin-top: 20px; box-shadow: inset 0 0 10px #000; }
+        .calc-display { background: #9e9d24; font-family: 'Digital', monospace; font-size: 2rem; padding: 10px; text-align: right; color: #000; border: inset 3px #555; margin-bottom: 15px; overflow: hidden; }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .calc-btn { background: #424242; border: 2px outset #616161; color: white; padding: 10px 0; font-size: 1.2rem; cursor: pointer; font-family: sans-serif; font-weight: bold; }
+        .calc-btn:active { border-style: inset; background: #212121; }
+        .calc-btn.op { background: #1565c0; border-color: #1e88e5; }
+        .calc-btn.clear { background: var(--stamp-red); grid-column: span 2; }
+        .calc-btn.eq { background: #2e7d32; grid-column: span 2; }
+
+        /* Blocked Screen */
+        .blocked-screen { position: absolute; inset: 0; background: var(--desk-bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; font-family: var(--typewriter); color: #fff; }
+    
+        .hint-btn { background:#6d4c41; border-color:#4e342e; font-size:0.95rem; padding:8px 12px; margin-top:20px; }
+        .hint-btn:hover { background:#795548; }
+        .hint-box { display:none; margin-top:12px; padding:10px 14px; font-family:var(--typewriter); border-left:4px solid var(--ink-blue); background:rgba(13,71,161,0.07); }
+        .hint-box p { margin:6px 0; }
+        #ptModal { display:none; position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,0.85); align-items:center; justify-content:center; padding:15px; }
+        .pt-wrap { background:var(--paper-bg); padding:15px; max-width:1100px; width:100%; max-height:95vh; overflow:auto; border-radius:4px; }
+        .pt-grid { display:grid; grid-template-columns:repeat(18,minmax(44px,1fr)); gap:2px; min-width:830px; }
+        .pt-c { background:#e8d9bd; border:1px solid #bca98a; text-align:center; font-family:var(--typewriter); padding:2px 0; line-height:1.15; }
+        .pt-c small { display:block; font-size:0.6rem; color:#6d4c41; text-align:left; padding-left:3px; }
+        .pt-c b { font-size:1rem; } .pt-c span { display:block; font-size:0.7rem; }
+        .pt-c.ng { background:#cfd8dc; }
+    </style>
+</head>
+<body oncontextmenu="return false;" oncopy="return false;" oncut="return false;" onpaste="return false;">
+
+<div id="lockScreen" class="blocked-screen" style="display: none;">
+    <h1 style="color: var(--stamp-red); font-size: 3rem;">СПРАВУ ЗДАНО В АРХІВ</h1>
+    <p style="font-size: 1.2rem; max-width: 600px;">Ви вже проходили цю олімпіаду або завершили сеанс. Відповідно до правил, дозволяється лише одна спроба.</p>
+</div>
+
+<div class="sidebar-left">
+    <h3 style="margin-top: 0; border-bottom: 1px dashed #757575; padding-bottom: 10px; font-family: var(--typewriter);">ДОШКА ДОКАЗІВ</h3>
+    <div id="inventoryContainer" class="inventory-list">
+        <div style="color: #9e9e9e; font-style: italic; font-family: var(--typewriter);">Докази відсутні</div>
+    </div>
+</div>
+
+<div class="main-content">
+    
+    <div class="stats-panel">
+        <span style="color: var(--stamp-red);">ЧАС: <span id="timerUI">00:00</span></span>
+        <span style="color: #1565c0;">БАЛИ: <span id="scoreUI"></span></span>
+        <span style="color: var(--stamp-red);">ПОРУШЕНЬ: <span id="warnUI">0</span></span>
+        <span style="color: #6d4c41;">ПІДКАЗОК: <span id="hintUI">0</span></span>
+    </div>
+
+    <div class="stage-container">
+        
+        <!-- ЕТАП 0 -->
+        <div class="stage-card active" id="stage0">
+            <div class="folder-tab">ВХІДНИЙ КОНТРОЛЬ</div>
+            <div class="stamp">СЕКРЕТНО</div>
+            <h2>Службова інструкція криміналіста</h2>
+            <div class="story-text">
+                <strong>Об'єкт:</strong> Кафедра неорганічної хімії, сейф №17.<br>
+                <strong>Справа:</strong> «Срібний еталон» — нічна крадіжка зразка срібла (10,8 г). Десять аркушів справи — десять доказів. Кожен розв'язаний аркуш наближає вас до імені злочинця.<br>
+                <br>
+                <strong>КРИТЕРІЇ ОЦІНЮВАННЯ:</strong><br>
+                1. Базова оцінка: <strong><span class="maxScore"></span> балів</strong>.<br>
+                2. Штраф за кожну неправильну спробу/помилку: <strong>-5 балів</strong>.<br>
+                3. Штраф за вихід з вкладки (спроба списати): <strong>-10 балів</strong>.<br>
+                4. Бонус за швидкість (менше 45 хв): <strong>+10 балів</strong>.<br>
+                5. Підказка: <strong>-2 бали</strong> (перша) і <strong>-3 бали</strong> (друга) на кожному аркуші.<br>
+                6. Молярні маси беріть з <strong>періодичної системи</strong> (кнопка праворуч) — вона не вважається порушенням.<br>
+                <br>
+                <em>Таймер запуститься після авторизації. Усі розрахунки вносьте у відповідні графи справи.</em>
+            </div>
+            <div class="form-group">
+                <label>Прізвище та Ім'я курсанта:</label>
+                <input type="text" id="stuName" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Шифр групи:</label>
+                <input type="text" id="stuGroup" autocomplete="off">
+            </div>
+            <button onclick="startOlympiad()">ВІДКРИТИ СПРАВУ</button>
+            <div id="fb0" class="sys-msg"></div>
+        </div>
+
+        <!-- ФІНАЛ -->
+        <div class="stage-card" id="stage11">
+            <div class="stamp" style="font-size: 3rem; transform: rotate(-5deg); margin-left: 25%;">РОЗКРИТО</div>
+            <h1 style="text-align: center; font-family: var(--typewriter); margin-bottom: 5px;">ДОВІДКА № 118-А</h1>
+            <p style="text-align: center; font-family: var(--typewriter); font-weight: bold; border-bottom: 2px solid; padding-bottom: 10px;">Результати хімічного розслідування</p>
+            
+            <div class="story-text" style="margin-top:20px;"><strong>ВИРОК:</strong> охоронця Петра затримано. Сліпучий спалах магнію, код сейфа «17», срібло, перетворене на AgNO₃ у пляшці «з водою», і лужна пляма від соди на підлозі — усе зійшлося. Срібний еталон повернуто на кафедру. Справу закрито завдяки вам!</div>
+            <div style="font-family: var(--typewriter); font-size: 1.2rem; line-height: 1.8; margin-top: 20px;">
+                <p><strong>Слідчий-курсант:</strong> <span id="f_name"></span> (Група: <span id="f_group"></span>)</p>
+                <p><strong>Загальний час розслідування:</strong> <span id="f_time"></span></p>
+                <p><strong>Зафіксовано помилок у протоколах:</strong> <span id="f_err"></span></p>
+                <p style="color: var(--stamp-red);"><strong>Спроб порушення режиму секретності (вихід з вкладки):</strong> <span id="f_warn"></span></p>
+                <p><strong>Використано підказок:</strong> <span id="f_hint"></span></p>
+                
+                <h2 style="margin-top: 30px; text-align: center;">ПІДСУМКОВИЙ БАЛ: <span id="f_score"></span> / <span class="maxScore"></span></h2>
+            </div>
+            
+            <button id="sendBtn" onclick="submitToGoogle()" style="margin-top: 30px; padding: 15px; background: var(--ink-color);">ВІДПРАВИТИ ЗВІТ ДО БАЗИ ХМФК (Google Sheets)</button>
+            <div id="fb11" class="sys-msg"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ПРАВА ПАНЕЛЬ: КАЛЬКУЛЯТОР -->
+<div class="sidebar-right">
+    <button onclick="togglePT(true)" style="margin:0 0 15px;">📋 ПЕРІОДИЧНА СИСТЕМА</button>
+    <h3 style="margin-top: 0; border-bottom: 1px dashed #757575; padding-bottom: 10px; font-family: var(--typewriter);">ЕЛЕКТРОННА МК-52</h3>
+    <div class="calc-wrapper">
+        <div class="calc-display" id="calcDisp">0</div>
+        <div class="calc-grid">
+            <button class="calc-btn clear" onclick="c_clr()">C</button>
+            <button class="calc-btn op" onclick="c_op('/')">/</button>
+            <button class="calc-btn op" onclick="c_op('*')">×</button>
+            
+            <button class="calc-btn" onclick="c_num('7')">7</button>
+            <button class="calc-btn" onclick="c_num('8')">8</button>
+            <button class="calc-btn" onclick="c_num('9')">9</button>
+            <button class="calc-btn op" onclick="c_op('-')">−</button>
+            
+            <button class="calc-btn" onclick="c_num('4')">4</button>
+            <button class="calc-btn" onclick="c_num('5')">5</button>
+            <button class="calc-btn" onclick="c_num('6')">6</button>
+            <button class="calc-btn op" onclick="c_op('+')">+</button>
+            
+            <button class="calc-btn" onclick="c_num('1')">1</button>
+            <button class="calc-btn" onclick="c_num('2')">2</button>
+            <button class="calc-btn" onclick="c_num('3')">3</button>
+            <button class="calc-btn eq" onclick="c_eq()" style="grid-row: span 2;">=</button>
+            
+            <button class="calc-btn" onclick="c_num('0')" style="grid-column: span 2;">0</button>
+            <button class="calc-btn" onclick="c_num('.')">.</button>
+        </div>
+    </div>
+</div>
+
+<div id="ptModal"><div class="pt-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--typewriter);margin-bottom:10px;"><strong>ПЕРІОДИЧНА СИСТЕМА (Z, символ, Ar)</strong><button onclick="togglePT(false)" style="width:auto;margin:0;padding:6px 14px;">✖ ЗАКРИТИ</button></div>
+    <div class="pt-grid" id="ptGrid"></div></div></div>
+
+<script>
+    // =========================================================================
+    // ВАШЕ ПОСИЛАННЯ НА GOOGLE APPS SCRIPT
+    // =========================================================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUJz3z-lAnh9qbqgr4vZs6Hq0TZPMJAWzN6EEGbUKhQLFuu9zOR9tqFxogy7pPQ64kow/exec";
+
+    const START_SCORE = 150; // стартовий (і максимальний) бал
+    let state = { stage: 0, score: START_SCORE, mistakes: 0, warnings: 0, hints: 0, hl: {}, startTime: null, endTime: null, timerInt: null, inv: [] };
+
+    if (localStorage.getItem('olympiadFinished') === 'true') {
+        document.getElementById('lockScreen').style.display = 'flex';
+    }
+
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden && state.stage > 0 && state.stage < 11) {
+            state.warnings++;
+            state.score = Math.max(0, state.score - 10);
+            updateUI();
+            alert("⚠️ ПОРУШЕННЯ РЕЖИМУ СЕКРЕТНОСТІ! Вихід із вкладки зафіксовано. Штраф: -10 балів.");
+        }
+    });
+
+    let calcVal = '0', calcOp = null, calcPrev = null, calcNewNum = false;
+    const dsp = document.getElementById('calcDisp');
+    function uDisp() { dsp.innerText = calcVal; }
+    function c_num(n) {
+        if (calcNewNum) { calcVal = n; calcNewNum = false; }
+        else { calcVal = calcVal === '0' ? n : calcVal + n; }
+        uDisp();
+    }
+    function c_op(o) {
+        if (calcOp && !calcNewNum) c_eq();
+        calcPrev = parseFloat(calcVal);
+        calcOp = o;
+        calcNewNum = true;
+    }
+    function c_eq() {
+        if (!calcOp || calcPrev === null) return;
+        let curr = parseFloat(calcVal), res = 0;
+        if (calcOp === '+') res = calcPrev + curr;
+        if (calcOp === '-') res = calcPrev - curr;
+        if (calcOp === '*') res = calcPrev * curr;
+        if (calcOp === '/') res = calcPrev / curr;
+        calcVal = res.toString();
+        calcOp = null;
+        calcNewNum = true;
+        uDisp();
+    }
+    function c_clr() { calcVal = '0'; calcOp = null; calcPrev = null; uDisp(); }
+
+    function updateUI() {
+        document.getElementById('scoreUI').innerText = state.score;
+        document.getElementById('warnUI').innerText = state.warnings;
+        document.getElementById('hintUI').innerText = state.hints;
+        let invHtml = '';
+        state.inv.forEach(i => {
+            invHtml += `<div class="inv-item"><div class="inv-icon">${i.icon}</div><div class="inv-details"><span class="inv-value">${i.val}</span></div></div>`;
+        });
+        document.getElementById('inventoryContainer').innerHTML = invHtml || '<div style="color: #9e9e9e; font-style: italic; font-family: Courier New;">Докази відсутні</div>';
+    }
+
+    function goStage(n) {
+        document.querySelectorAll('.stage-card').forEach(e => e.classList.remove('active'));
+        document.getElementById('stage' + n).classList.add('active');
+        state.stage = n;
+        if (n === 11) finishOlympiad();
+    }
+
+    function msg(stage, ok, txt) {
+        let box = document.getElementById('fb' + stage);
+        box.className = 'sys-msg ' + (ok ? 'sys-success' : 'sys-error');
+        box.innerText = txt;
+        if (!ok) { state.mistakes++; state.score = Math.max(0, state.score - 5); updateUI(); }
+    }
+
+    function startOlympiad() {
+        let n = document.getElementById('stuName').value.trim();
+        let g = document.getElementById('stuGroup').value.trim();
+        if (!n || !g) return msg(0, false, "Введіть усі дані для доступу до справи.");
+        sessionStorage.setItem('sName', n);
+        sessionStorage.setItem('sGroup', g);
+        state.startTime = Date.now();
+        state.timerInt = setInterval(() => {
+            let diff = Math.floor((Date.now() - state.startTime) / 1000);
+            let m = String(Math.floor(diff / 60)).padStart(2, '0');
+            let s = String(diff % 60).padStart(2, '0');
+            document.getElementById('timerUI').innerText = `${m}:${s}`;
+        }, 1000);
+        state.inv.push({icon: '🪪', val: n});
+        updateUI(); goStage(1);
+    }
+
+    
+    const SEL = '<option value="">-- Оберіть --</option>';
+    const BOND = [['cn','Ковалентний неполярний'],['cp','Ковалентний полярний'],['io','Йонний'],['me','Металічний']];
+    const LAT = [['mol','Молекулярна'],['ion','Йонна'],['atm','Атомна'],['met','Металічна']];
+    const MED = [['acid','Кисле'],['neu','Нейтральне'],['alk','Лужне']];
+    const N = (l,a) => ({t:'n', l, a});
+    const X = (l,o,a) => ({t:'s', l, o, a});
+
+    const STAGES = [
+    { title:'Спалах о 02:14', btn:'Підшити до справи', clue:{icon:'💡',val:'Спалах: Mg → MgO'},
+      story:'Ніч на 17 листопада. О 02:14 у лабораторії спалахнуло сліпуче біле світло — камери нагляду осліпли, а зловмисник відкрив сейф, звідки зник <strong>еталонний зразок срібла (10,8 г)</strong>. У шафі з реактивами не вистачає шматка магнієвої стрічки масою <strong>2,4 г</strong>, а в тиглі лишився білий порошок масою <strong>4,0 г</strong> (магній згорів повністю).',
+      fields:[ X('Який закон дозволяє знайти масу Оксигену, що прореагував?',[['m','Закон збереження маси речовин'],['p','Закон сталості складу'],['a','Закон Авогадро']],'m'),
+               N('Маса кисню, що прореагував (г):',1.6), N('Масова частка Оксигену в білому порошку (%):',40) ] },
+    { title:'Шифр сейфа', btn:'Затвердити експертизу', clue:{icon:'🔐',val:'Код сейфа: 17 (Хлор)'},
+      story:'На сейфі приклеєно стікер для лаборантів: «Код = протонне число елемента, електронна формула атома якого <strong>1s² 2s² 2p⁶ 3s² 3p⁵</strong>». Злодій цей код знав!',
+      fields:[ N('Протонне число Z (код сейфа):',17), {t:'x',l:'Символ елемента:',a:['cl']},
+               N('Кількість нейтронів в ізотопі з нуклонним числом 35:',18), N('Кількість валентних електронів:',7) ] },
+    { title:'Сліди Хлору', btn:'Додати в досьє', clue:{icon:'🧬',val:'Сліди: Cl₂, HCl, NaCl'},
+      story:'У коридорі злодій залишив сліди трьох речовин з однаковим елементом: <strong>Cl₂</strong> (жовто-зелений газ), <strong>HCl</strong> (газ із різким запахом) та <strong>NaCl</strong> (білі кристали, розплав проводить струм). Електронегативності: Na — 0,9; H — 2,1; Cl — 3,0.',
+      fields:[ X('Зв\'язок у Cl₂:',BOND,'cn'), X('Зв\'язок у HCl:',BOND,'cp'), X('Зв\'язок у NaCl:',BOND,'io'),
+               N('Різниця електронегативностей у NaCl (за даними вище):',2.1),
+               X('У молекулі HCl спільна електронна пара зміщена до:',[['h','атома Гідрогену'],['c','атома Хлору'],['n','не зміщена']],'c') ] },
+    { title:'Кишені злодія', btn:'Прикріпити до дошки', clue:{icon:'🔍',val:'Срібло: металічна ґратка'},
+      story:'Біля сейфа знайдено три предмети. <strong>А</strong> — прозорі кристали: дуже тверді, плавляться вище 1700 °C, струм не проводять, нерозчинні (кварцовий пісок з взуття). <strong>Б</strong> — темно-фіолетові кристали, м\'які, легко сублімують, мають різкий запах (йод). <strong>В</strong> — блискучі ковкі пластинки, що проводять струм (уламок зниклого зразка!).',
+      fields:[ X('Тип ґратки речовини А:',LAT,'atm'), X('Тип ґратки речовини Б:',LAT,'mol'), X('Тип ґратки речовини В:',LAT,'met'),
+               X('Чим зумовлена електропровідність В?',[['e','Рухливими електронами (електронний газ)'],['i','Рухливими йонами'],['m','Рухом молекул']],'e') ] },
+    { title:'Прозора «вода»', btn:'Зафіксувати реакцію', clue:{icon:'🧪',val:'Срібло → AgNO₃'},
+      story:'Щоб непомітно винести срібло, злодій розчинив його в розведеній нітратній кислоті — вийшла «прозора вода» у звичайній пляшці: <strong>Ag + HNO₃ → AgNO₃ + NO↑ + H₂O</strong>. Безбарвний газ NO на повітрі миттєво буріє — звідси бурий дим, який помітила охорона.',
+      fields:[ N('Сума всіх коефіцієнтів у зрівняному рівнянні:',13), X('Окисник у цій реакції:',[['ag','Ag'],['hn','HNO₃ (за рахунок Nітрогену N⁺⁵)'],['h2o','H₂O']],'hn'),
+               {t:'x',l:'Ступінь окиснення Нітрогену в NO (число зі знаком):',a:['+2','2']} ] },
+    { title:'Час спливає', btn:'Підшити до справи', clue:{icon:'⏱️',val:'Нагрів до 60 °C'},
+      story:'При 20 °C таке розчинення триває <strong>80 хв</strong>, але до обходу охорони у злодія було лише <strong>5 хв</strong>, тому він нагрів суміш. Температурний коефіцієнт швидкості γ = 2. Бурий газ утворюється за схемою <strong>2NO + O₂ → 2NO₂</strong>.',
+      fields:[ N('У скільки разів потрібно прискорити реакцію?',16), N('До якої температури (°C) потрібно нагріти суміш?',60),
+               N('У скільки разів зросте швидкість 2NO + O₂ → 2NO₂, якщо концентрацію NO збільшити вдвічі?',4) ] },
+    { title:'Бура хмара', btn:'Приховати сліди', clue:{icon:'🌫️',val:'NO₂ ⇄ N₂O₄'}, locked:true, flask:true,
+      story:'Бурий NO₂ видно на камері, тож злодій вирішив його «сховати»: <strong>2NO₂ (бурий) ⇄ N₂O₄ (безбарвний) + Q</strong>. Підберіть температуру й тиск так, щоб колба стала майже безбарвною (принцип Ле Шательє).',
+      fields:[ X('Підвищення тиску зміщує цю рівновагу:',[['r','праворуч (→)'],['l','ліворуч (←)'],['n','не зміщує']],'r') ] },
+    { title:'Склянка з «пекельним каменем»', btn:'Зберегти протокол', clue:{icon:'⚗️',val:'AgNO₃: 17 г, 10 %'},
+      story:'Злодій отримав розчин AgNO₃ масою <strong>170 г</strong>, розчинивши весь зразок срібла (10,8 г). Щоб розчин нагадував воду, його розбавили до масової частки <strong>2 %</strong>.',
+      fields:[ N('Маса AgNO₃ у розчині (г):',17), N('Масова частка AgNO₃ у розчині 170 г (%):',10), N('Маса води, яку долили (г):',680) ] },
+    { title:'Експертиза пляшки', btn:'Провести реакцію', clue:{icon:'🥛',val:'Осад AgCl: 14,35 г'},
+      story:'Слідчий перевіряє вилучену пляшку (у ній 17 г AgNO₃) розчином NaCl, взятим з надлишком. Випадає білий сирнистий осад, що темніє на світлі.',
+      fields:[ X('Скорочене йонне рівняння:',[['1','Na⁺ + NO₃⁻ = NaNO₃↓'],['2','Ag⁺ + Cl⁻ = AgCl↓'],['3','Ag⁺ + NO₃⁻ = AgNO₃↓']],'2'),
+               N('Сума коефіцієнтів у повному йонному рівнянні (усі йони записати, коефіцієнти — 1):',7), N('Маса осаду AgCl (г):',14.35) ] },
+    { title:'Підозрювані та гідроліз', btn:'Закрити справу та передати в архів', go:11,
+      story:'Біля раковини, де злодій мив руки, знайдено калюжу: фенолфталеїн у ній став <strong>малиновим</strong>. У сумках підозрюваних — по одній речовині: <strong>Олег</strong> (лаборант) — харчова сіль NaCl; <strong>Марина</strong> (аспірантка) — нашатир NH₄Cl; <strong>Петро</strong> (охоронець) — кальцинована сода Na₂CO₃; <strong>Вадим</strong> (доцент) — калійна селітра KNO₃. Визначте середовище розчинів їхніх солей.',
+      fields:[ X('NaCl (Олег):',MED,'neu'), X('NH₄Cl (Марина):',MED,'acid'), X('Na₂CO₃ (Петро):',MED,'alk'), X('KNO₃ (Вадим):',MED,'neu'),
+               X('Перша стадія гідролізу Na₂CO₃ (скорочене йонне рівняння):',[['1','CO₃²⁻ + H₂O ⇌ HCO₃⁻ + OH⁻'],['2','Na⁺ + H₂O ⇌ NaOH + H⁺'],['3','CO₃²⁻ + 2H⁺ → H₂CO₃']],'1'),
+               X('Кого затримати?',[['o','Олега'],['m','Марину'],['p','Петра'],['v','Вадима']],'p') ] }
+    ];
+
+    function fieldHtml(n, j, f) {
+        const id = `f${n}_${j}`;
+        const inp = f.t === 's' ? `<select id="${id}">${SEL}${[...f.o].sort(() => Math.random() - 0.5).map(o => `<option value="${o[0]}">${o[1]}</option>`).join('')}</select>`
+                                : `<input type="text" id="${id}" inputmode="decimal" autocomplete="off">`;
+        return `<div class="form-group"><label>${f.l}</label>${inp}</div>`;
+    }
+
+    const FLASK = `<div style="text-align:center;margin-bottom:20px;"><div id="flask" style="width:110px;height:110px;margin:0 auto 8px;border:3px solid #555;border-radius:0 0 55px 55px;background:rgb(121,60,10);"></div>
+        <div id="flaskTxt" style="font-family:var(--typewriter);font-weight:bold;"></div></div>
+        <div class="form-group"><label>Температура: <span id="tVal">50</span> °C</label><input type="range" id="t_sld" min="-20" max="100" step="10" value="50" style="width:100%" oninput="updateFlask()"></div>
+        <div class="form-group"><label>Тиск: <span id="pVal">1</span> атм</label><input type="range" id="p_sld" min="1" max="10" step="1" value="1" style="width:100%" oninput="updateFlask()"></div>`;
+
+    function build() {
+        const box = document.querySelector('.stage-container'), fin = document.getElementById('stage11');
+        STAGES.forEach((s, i) => {
+            const n = i + 1, d = document.createElement('div');
+            d.className = 'stage-card'; d.id = 'stage' + n;
+            d.innerHTML = `<div class="folder-tab">АРКУШ ${n}</div><h2>${s.title}</h2><div class="story-text">${s.story}</div>` +
+                (s.flask ? FLASK : '') + s.fields.map((f, j) => fieldHtml(n, j, f)).join('') +
+                `<button id="btn${n}" onclick="check(${n})" ${s.locked ? 'disabled' : ''}>${s.btn}</button><div id="fb${n}" class="sys-msg"></div>` +
+                `<button class="hint-btn" id="hb${n}" onclick="hint(${n})">💡 ПІДКАЗКА 1 (−${HINT_COST[0]} бали)</button><div class="hint-box" id="ht${n}"></div>`;
+            box.insertBefore(d, fin);
+        });
+        updateFlask();
+    }
+
+    function check(n) {
+        const s = STAGES[n - 1];
+        const ok = s.fields.every((f, j) => {
+            const v = document.getElementById(`f${n}_${j}`).value.trim().toLowerCase().replace(',', '.');
+            if (f.t === 'n') return v !== '' && Math.abs(parseFloat(v) - f.a) < 0.011;
+            if (f.t === 'x') return f.a.includes(v.replace(/\s/g, ''));
+            return v === f.a;
+        });
+        if (!ok) return msg(n, false, 'Хибний висновок експертизи. Штраф: -5 балів.');
+        msg(n, true, n === 10 ? 'Винуватця встановлено!' : 'Дані підтверджено.');
+        if (s.clue) { state.inv.push(s.clue); updateUI(); }
+        setTimeout(() => goStage(s.go || n + 1), 1000);
+    }
+
+    function updateFlask() {
+        const t = parseInt(document.getElementById('t_sld').value), p = parseInt(document.getElementById('p_sld').value);
+        const b = 0.15 + 0.85 * (0.6 * (t + 20) / 120 + 0.4 * (10 - p) / 9);
+        document.getElementById('tVal').innerText = t; document.getElementById('pVal').innerText = p;
+        document.getElementById('flask').style.background = `rgba(121,60,10,${b.toFixed(2)})`;
+        const clear = b < 0.35;
+        const tx = document.getElementById('flaskTxt');
+        tx.style.color = clear ? '#1b5e20' : 'var(--stamp-red)';
+        tx.innerText = clear ? 'ГАЗ МАЙЖЕ БЕЗБАРВНИЙ — КАМЕРА НІЧОГО НЕ БАЧИТЬ' : 'БУРИЙ ДИМ ВИДНО НА КАМЕРІ';
+        document.getElementById('btn7').disabled = !clear;
+    }
+
+
+    const HINT_COST = [2, 3];
+    const HINTS = [
+     ['Маса речовин до реакції дорівнює масі речовин після реакції. Кисень у масу магнію не входив.','m(O₂) = m(порошку) − m(Mg). Для масової частки візьміть Ar(O) і Mr(MgO) з періодичної системи: w = Ar(O) / Mr(MgO) · 100 %.'],
+     ['Протонне число дорівнює кількості електронів у нейтральному атомі. Підрахуйте їх за електронною формулою.','Додайте всі індекси: 2+2+6+2+5. Нейтрони: N = A − Z. Валентні електрони — лише ті, що на останньому (3-му) рівні.'],
+     ['Однакові атоми — різниці ЕН немає; різні атоми з невеликою різницею — зв\'язок полярний; дуже велика різниця — йонний.','HCl: 3,0 − 2,1 = 0,9. NaCl: 3,0 − 0,9. Електронна пара зміщується до атома з більшою електронегативністю.'],
+     ['Зіставте властивості з типом ґратки: твердість і тугоплавкість; леткість (сублімація); ковкість і блиск.','Кварц — ковалентні зв\'язки у всьому кристалі. Йод — окремі молекули зі слабкою взаємодією. Срібло — катіони у вузлах і вільні електрони між ними.'],
+     ['Знайдіть елементи, що змінюють ступінь окиснення: Ag і N. Окисник — той, хто приймає електрони.','Ag⁰ − 1e⁻ → Ag⁺ і N⁺⁵ + 3e⁻ → N⁺². Отже, на 1 атом N в NO припадає 3 атоми Ag. Далі зрівняйте H і O.'],
+     ['Правило Вант-Гоффа: v₂/v₁ = γ^(Δt/10). Час обернено пропорційний швидкості. Закон діючих мас: v = k·[NO]²·[O₂].','Швидкість зростає в 80 : 5 разів. Знайдіть n із 2ⁿ = це число, тоді Δt = 10·n. Для NO зверніть увагу на степінь у законі діючих мас.'],
+     ['Реакція екзотермічна (+Q). Ліворуч 2 моль газу, праворуч — 1 моль. Подумайте, як на це впливають температура і тиск.','Щоб змістити рівновагу праворуч: знизьте температуру (екзотермічна реакція) і підвищте тиск (менше моль газу праворуч).'],
+     ['n(Ag) = m / Ar(Ag). За рівнянням n(AgNO₃) = n(Ag), далі m = n · Mr. Масова частка w = m(речовини) / m(розчину).','Після розбавлення m(розчину) = m(AgNO₃) / 0,02. Воду, що долили, знайдіть як різницю нової та початкової маси розчину.'],
+     ['Запишіть молекулярне рівняння AgNO₃ + NaCl → AgCl↓ + NaNO₃. Розчинні сильні електроліти розпишіть на йони, осад — ні.','Повне йонне: Ag⁺ + NO₃⁻ + Na⁺ + Cl⁻ = AgCl↓ + Na⁺ + NO₃⁻ (порахуйте коефіцієнти). n(AgCl) = n(AgNO₃), m = n · Mr(AgCl).'],
+     ['Середовище визначає «сильний» компонент солі: сильна основа + слабка кислота → лужне; слабка основа + сильна кислота → кисле; обидва сильні — нейтральне.','NaCl і KNO₃ утворені сильними основами та кислотами. NH₄Cl: слабка основа NH₃·H₂O + HCl. Na₂CO₃: NaOH + слабка H₂CO₃. Фенолфталеїн став малиновим — у якому середовищі?']
+    ];
+
+    function hint(n) {
+        const lv = state.hl[n] || 0;
+        if (lv >= 2) return;
+        if (!confirm(`Підказка ${lv + 1} коштує −${HINT_COST[lv]} бали. Показати?`)) return;
+        state.hl[n] = lv + 1; state.hints++;
+        state.score = Math.max(0, state.score - HINT_COST[lv]);
+        const box = document.getElementById('ht' + n);
+        box.style.display = 'block';
+        box.innerHTML += `<p>💡 <strong>Підказка ${lv + 1}:</strong> ${HINTS[n - 1][lv]}</p>`;
+        const b = document.getElementById('hb' + n);
+        if (lv + 1 >= 2) { b.disabled = true; b.innerText = 'ПІДКАЗКИ ВИЧЕРПАНО'; }
+        else b.innerText = `💡 ПІДКАЗКА 2 (−${HINT_COST[1]} бали)`;
+        updateUI();
+    }
+
+    const EL = "H1 He4 Li7 Be9 B11 C12 N14 O16 F19 Ne20 Na23 Mg24 Al27 Si28 P31 S32 Cl35.5 Ar40 K39 Ca40 Sc45 Ti48 V51 Cr52 Mn55 Fe56 Co59 Ni59 Cu64 Zn65 Ga70 Ge73 As75 Se79 Br80 Kr84 Rb85 Sr88 Y89 Zr91 Nb93 Mo96 Tc98 Ru101 Rh103 Pd106 Ag108 Cd112 In115 Sn119 Sb122 Te128 I127 Xe131 Cs133 Ba137 La139 Ce140 Pr141 Nd144 Pm145 Sm150 Eu152 Gd157 Tb159 Dy163 Ho165 Er167 Tm169 Yb173 Lu175 Hf178 Ta181 W184 Re186 Os190 Ir192 Pt195 Au197 Hg201 Tl204 Pb207 Bi209 Po209 At210 Rn222 Fr223 Ra226 Ac227 Th232 Pa231 U238 Np237 Pu244 Am243 Cm247 Bk247 Cf251 Es252 Fm257 Md258 No259 Lr266 Rf267 Db268 Sg269 Bh270 Hs277 Mt278 Ds281 Rg282 Cn285 Nh286 Fl289 Mc290 Lv293 Ts294 Og294".replace("Cf251","Bk247 Cf251").replace("Bk247 Bk247","Bk247");
+    function ptPos(z) {
+        if (z === 1) return [1, 1]; if (z === 2) return [1, 18];
+        if (z <= 4) return [2, z - 2]; if (z <= 10) return [2, z + 8];
+        if (z <= 12) return [3, z - 10]; if (z <= 18) return [3, z];
+        if (z <= 36) return [4, z - 18]; if (z <= 54) return [5, z - 36];
+        if (z <= 56) return [6, z - 54]; if (z <= 70) return [8, z - 54];
+        if (z === 71) return [6, 3]; if (z <= 86) return [6, z - 68];
+        if (z <= 88) return [7, z - 86]; if (z <= 102) return [9, z - 86];
+        if (z === 103) return [7, 3]; return [7, z - 100];
+    }
+    function buildPT() {
+        const noble = [2, 10, 18, 36, 54, 86, 118];
+        let h = '', z = 0;
+        for (const m of EL.matchAll(/([A-Z][a-z]?)([\d.]+)/g)) {
+            z++; const [r, c] = ptPos(z);
+            h += `<div class="pt-c${noble.includes(z) ? ' ng' : ''}" style="grid-row:${r >= 8 ? r + 1 : r};grid-column:${c};"><small>${z}</small><b>${m[1]}</b><span>${m[2]}</span></div>`;
+        }
+        document.getElementById('ptGrid').innerHTML = h;
+    }
+    function togglePT(on) { document.getElementById('ptModal').style.display = on ? 'flex' : 'none'; }
+    buildPT();
+    document.querySelectorAll(".maxScore").forEach(e => e.innerText = START_SCORE);
+    document.getElementById("scoreUI").innerText = START_SCORE;
+
+    build();
+
+    function finishOlympiad() {
+        clearInterval(state.timerInt);
+        state.endTime = Date.now();
+        let tTotal = Math.floor((state.endTime - state.startTime) / 1000);
+        
+        if (tTotal < 2700) state.score = Math.min(START_SCORE, state.score + 10);
+        
+        let m = String(Math.floor(tTotal / 60)).padStart(2, '0');
+        let s = String(tTotal % 60).padStart(2, '0');
+        let timeStr = `${m}:${s}`;
+        
+        document.getElementById('f_name').innerText = sessionStorage.getItem('sName');
+        document.getElementById('f_group').innerText = sessionStorage.getItem('sGroup');
+        document.getElementById('f_time').innerText = timeStr;
+        document.getElementById('f_err').innerText = state.mistakes;
+        document.getElementById('f_warn').innerText = state.warnings;
+        document.getElementById('f_hint').innerText = state.hints;
+        document.getElementById('f_score').innerText = state.score;
+        
+        localStorage.setItem('olympiadFinished', 'true');
+    }
+
+    async function submitToGoogle() {
+        const btn = document.getElementById('sendBtn');
+        btn.disabled = true; btn.innerText = 'ВІДПРАВКА...';
+        
+        let payload = {
+            studentName: sessionStorage.getItem('sName'),
+            studentGroup: sessionStorage.getItem('sGroup'),
+            timeElapsed: document.getElementById('f_time').innerText,
+            score: state.score,
+            details: `Помилок: ${state.mistakes}, Виходів з вкладки: ${state.warnings}, Підказок: ${state.hints}.`
+        };
+
+        try {
+            await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+            msg(11, true, "✅ ЗВІТ УСПІШНО ПЕРЕДАНО В БАЗУ ДАНИХ КОЛЕДЖУ!");
+            btn.innerText = 'ЗВІТ ВІДПРАВЛЕНО';
+        } catch (err) {
+            msg(11, false, "❌ Помилка передачі даних. Зробіть скріншот екрану.");
+            btn.disabled = false; btn.innerText = 'СПРОБУВАТИ ЩЕ';
+        }
+    }
+</script>
+
+</body>
+</html>
